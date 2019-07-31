@@ -183,9 +183,6 @@ static int8_t AUDIO_DeInit_FS(uint32_t options)
   */
 static int8_t AUDIO_AudioCmd_FS(uint8_t* pbuf, uint32_t size, uint8_t cmd)
 {
-    
-//  LED_Toggle();
-
   /* USER CODE BEGIN 2 */
   switch(cmd)
   {

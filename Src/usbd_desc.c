@@ -67,9 +67,9 @@
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "Press Every Key"
 #define USBD_PID_FS     22336
-#define USBD_PRODUCT_STRING_FS     "Noisemeter Microphone"
-#define USBD_CONFIGURATION_STRING_FS     "Config"
-#define USBD_INTERFACE_STRING_FS     "Interface"
+#define USBD_PRODUCT_STRING_FS     "STM32 Audio Class"
+#define USBD_CONFIGURATION_STRING_FS     "AUDIO Config"
+#define USBD_INTERFACE_STRING_FS     "AUDIO Interface"
 
 #define USB_SIZ_BOS_DESC            0x0C
 

@@ -86,8 +86,18 @@ void LED_Toggle(void) {
 void LED_Toggle_Modulo(void) {
   static uint32_t counter = 0;
   counter++;
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, (counter & 0x80));
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, ((counter >> 12) & 1));
 }
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+  LED_Toggle_Modulo();
+  uint32_t val = HAL_ADC_GetValue(&hadc1);
+
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -127,6 +137,10 @@ int main(void)
   MX_OPAMP1_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
+
+  LED_Set(0);
+  HAL_ADC_Start_IT(&hadc1);
+  HAL_TIM_Base_Start_IT(&htim15);
 
   /* USER CODE END 2 */
 
@@ -255,7 +269,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T15_TRGO;
@@ -263,7 +277,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = ENABLE;
-  hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_16;
+  hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_8;
   hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_NONE;
   hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
   hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;

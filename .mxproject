@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=/Users/matthias/Development/noisemeter-usbaudio/Inc
+HeaderPath=/Users/matthias/Development/noisemeter-timedadc/Inc
 HeaderFiles=usb_device.h;usbd_conf.h;usbd_desc.h;usbd_audio_if.h;stm32l4xx_it.h;stm32l4xx_hal_conf.h;main.h;usbd_storage_if.h;
-SourcePath=/Users/matthias/Development/noisemeter-usbaudio/Src
+SourcePath=/Users/matthias/Development/noisemeter-timedadc/Src
 SourceFiles=usb_device.c;usbd_conf.c;usbd_desc.c;usbd_audio_if.c;stm32l4xx_it.c;stm32l4xx_hal_msp.c;main.c;usbd_storage_if.c;
 
 [PreviousLibFiles]
