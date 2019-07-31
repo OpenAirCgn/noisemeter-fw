@@ -63,8 +63,22 @@
 #include "usbd_audio.h"
 #include "usbd_ctlreq.h"
 
+
+//Custom stuff
+
 extern void LED_Toggle(void);
 extern void LED_Toggle_Modulo(void);
+
+// size in samples - uint16_t
+#define MICBUF_EXTRA 4
+#define MICBUF_SIZE (USBD_AUDIO_FREQ/1000)
+//((USBD_AUDIO_FREQ/1000)+MICBUF_EXTRA)
+#define MICBUF_SIZE_BYTES (MICBUF_SIZE*2)
+__ALIGN_BEGIN uint16_t micBuf[MICBUF_SIZE]; __ALIGN_END
+
+void Resend_Data(USBD_HandleTypeDef *pdev) {
+  USBD_LL_Transmit(pdev, AUDIO_IN_EP, (uint8_t*)micBuf, MICBUF_SIZE_BYTES);
+}
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
@@ -335,21 +349,20 @@ __ALIGN_BEGIN static uint8_t USBD_AUDIO_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIE
   * @param  cfgidx: Configuration index
   * @retval status
   */
-#define MICBUF_SIZE ((USBD_AUDIO_FREQ/1000))
-__ALIGN_BEGIN uint16_t micBuf[MICBUF_SIZE] __ALIGN_END;
 
 static uint8_t  USBD_AUDIO_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
-  memset((uint8_t*)micBuf, 0x00, MICBUF_SIZE*2);
-  memset((uint8_t*)(&micBuf[4]), 0x40, MICBUF_SIZE*2-8);
-  memset((uint8_t*)(&micBuf[4]), 0xc0, MICBUF_SIZE-4);
+  memset((uint8_t*)micBuf, 0x00, MICBUF_SIZE_BYTES);
+  for (int i=MICBUF_EXTRA; i<MICBUF_SIZE; i++) {
+    micBuf[i] = (i<MICBUF_SIZE/2) ? 0xc000 : 0x4000;
+  }
   USBD_AUDIO_HandleTypeDef   *haudio;
 
   /* Open EP OUT */
-  USBD_LL_OpenEP(pdev, AUDIO_OUT_EP, USBD_EP_TYPE_ISOC, AUDIO_OUT_PACKET);
-  pdev->ep_out[AUDIO_OUT_EP & 0xFU].is_used = 1U;
+  // USBD_LL_OpenEP(pdev, AUDIO_OUT_EP, USBD_EP_TYPE_ISOC, AUDIO_OUT_PACKET);
+  // pdev->ep_out[AUDIO_OUT_EP & 0xFU].is_used = 1U;
 
-  USBD_LL_OpenEP(pdev, AUDIO_IN_EP, USBD_EP_TYPE_ISOC, MICBUF_SIZE);
+  USBD_LL_OpenEP(pdev, AUDIO_IN_EP, USBD_EP_TYPE_ISOC, MICBUF_SIZE_BYTES);
   pdev->ep_in[AUDIO_IN_EP & 0xFU].is_used = 1U;
 
   /* Allocate Audio structure */
@@ -591,18 +604,10 @@ static uint8_t  USBD_AUDIO_EP0_TxReady (USBD_HandleTypeDef *pdev)
   * @retval status
   */
 
-static uint16_t audioVal = 0;
-static uint8_t  USBD_AUDIO_SOF (USBD_HandleTypeDef *pdev)
-{
+static uint8_t  USBD_AUDIO_SOF (USBD_HandleTypeDef *pdev) {
   LED_Toggle_Modulo();
-//  USBD_AUDIO_HandleTypeDef *haudio = (USBD_AUDIO_HandleTypeDef*) pdev->pClassData;
-  // for (int i=4; i<MICBUF_SIZE; i++) {
-  //   micBuf[i] = audioVal;
-  //   audioVal += 109;
-  // } 
     
-
-  USBD_LL_Transmit(pdev, AUDIO_IN_EP, (uint8_t*)micBuf, MICBUF_SIZE*2);
+  Resend_Data(pdev);
 
   return USBD_OK;
 }
@@ -679,7 +684,7 @@ void  USBD_AUDIO_Sync (USBD_HandleTypeDef *pdev, AUDIO_OffsetTypeDef offset)
   */
 static uint8_t  USBD_AUDIO_IsoINIncomplete (USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-
+  LED_Toggle_Modulo();
   return USBD_OK;
 }
 /**
