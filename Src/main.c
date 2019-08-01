@@ -44,6 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 DAC_HandleTypeDef hdac1;
 
@@ -62,6 +63,7 @@ TIM_HandleTypeDef htim15;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SAI1_Init(void);
@@ -86,20 +88,34 @@ void LED_Toggle(void) {
 void LED_Toggle_Modulo(void) {
   static uint32_t counter = 0;
   counter++;
-  if (counter >= 24000) {
+  if (counter >= 500) {
     LED_Toggle();
     counter = 0;
   }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+#define HALF_NUM_SAMPLES 48
+#define NUM_SAMPLES (2*HALF_NUM_SAMPLES)
+
+uint16_t buf[NUM_SAMPLES];
+
+void ForwardSamples(uint16_t* base, uint16_t numSamples) {
+  LED_Toggle_Modulo();
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-  LED_Toggle_Modulo();
-  uint32_t val = HAL_ADC_GetValue(&hadc1);
-
+  ForwardSamples(&(buf[HALF_NUM_SAMPLES]), HALF_NUM_SAMPLES);
 }
+
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
+  ForwardSamples(buf, HALF_NUM_SAMPLES);
+}
+
+
+
+// void DMAComplete( DMA_HandleTypeDef *hdma) {
+// //  LED_Toggle_Modulo();
+// }
 
 /* USER CODE END 0 */
 
@@ -132,6 +148,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_SAI1_Init();
@@ -141,9 +158,8 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-  LED_Set(0);
-  HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_Base_Start_IT(&htim15);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)buf, NUM_SAMPLES);
 
   /* USER CODE END 2 */
 
@@ -277,7 +293,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T15_TRGO;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = ENABLE;
   hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_16;
@@ -523,6 +539,21 @@ static void MX_TIM15_Init(void)
   /* USER CODE BEGIN TIM15_Init 2 */
 
   /* USER CODE END TIM15_Init 2 */
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
 
