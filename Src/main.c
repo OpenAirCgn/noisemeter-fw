@@ -25,6 +25,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+extern void Forward_Samples(uint16_t* samples, uint16_t num_samples, uint8_t bufIdx);
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -97,18 +99,27 @@ void LED_Toggle_Modulo(void) {
 #define HALF_NUM_SAMPLES 48
 #define NUM_SAMPLES (2*HALF_NUM_SAMPLES)
 
-uint16_t buf[NUM_SAMPLES];
+uint16_t dmaBuf[NUM_SAMPLES];
 
-void ForwardSamples(uint16_t* base, uint16_t numSamples) {
-  LED_Toggle_Modulo();
+void Handle_Samples(uint16_t* base, uint16_t numSamples, uint8_t bufIdx) {
+  uint16_t min = 0x8000;
+  uint16_t max = 0x8000;
+  for(int i=0;i<numSamples;i++) {
+    uint16_t val = base[i];
+    if (val < min) min = val;
+    if (val > max) max = val;
+//    base[i] = val & 0xf000;
+  }
+  LED_Set(max-min > 0x1000);
+  Forward_Samples(base, numSamples, bufIdx);
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-  ForwardSamples(&(buf[HALF_NUM_SAMPLES]), HALF_NUM_SAMPLES);
+  Handle_Samples(&(dmaBuf[HALF_NUM_SAMPLES]), HALF_NUM_SAMPLES, 1);
 }
 
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
-  ForwardSamples(buf, HALF_NUM_SAMPLES);
+  Handle_Samples(dmaBuf, HALF_NUM_SAMPLES, 0);
 }
 
 
@@ -158,8 +169,14 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_OPAMP_Start(&hopamp1);
+  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
+  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
+  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
+
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dmaBuf, NUM_SAMPLES);
   HAL_TIM_Base_Start_IT(&htim15);
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)buf, NUM_SAMPLES);
 
   /* USER CODE END 2 */
 
