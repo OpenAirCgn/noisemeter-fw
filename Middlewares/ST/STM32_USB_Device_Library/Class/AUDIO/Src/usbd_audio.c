@@ -63,27 +63,14 @@
 #include "usbd_audio.h"
 #include "usbd_ctlreq.h"
 
-// size in samples - uint16_t
-#define MICBUF_EXTRA 0
-#define MICBUF_SIZE 48
-//((USBD_AUDIO_FREQ/1000)+MICBUF_EXTRA) (USBD_AUDIO_FREQ/1000)
-#define MICBUF_SIZE_BYTES (MICBUF_SIZE*2)
-#define NUM_MICBUFS 2
-
-__ALIGN_BEGIN volatile uint16_t micBuf[NUM_MICBUFS*MICBUF_SIZE]; __ALIGN_END
+#define MICBUF_SIZE SAMPLE_RATE/1000
 
 USBD_HandleTypeDef *mic_pdev = NULL;
 
-void Forward_Samples(uint16_t* samples, uint16_t num_samples, uint8_t bufIdx) {
-  volatile uint16_t *base = &(micBuf[bufIdx * MICBUF_SIZE]);
+void Forward_Samples(uint16_t* samples, uint16_t numSamples) {
   if (mic_pdev) {
-    uint16_t size = num_samples < (MICBUF_SIZE-MICBUF_EXTRA) ? num_samples : (MICBUF_SIZE-MICBUF_EXTRA);
-    for (uint16_t i=0; i<size; i++) {
-      uint16_t val = samples[i];
-      val += 0x8000;
-      base[MICBUF_EXTRA+i] = val;
-    }
-    USBD_LL_Transmit(mic_pdev, AUDIO_IN_EP, (uint8_t*)base, MICBUF_SIZE_BYTES);
+    uint16_t size = (numSamples <= MICBUF_SIZE) ? numSamples : MICBUF_SIZE;
+    USBD_LL_Transmit(mic_pdev, AUDIO_IN_EP, (uint8_t*)samples, size*2);
   }
 }
 
@@ -302,7 +289,7 @@ __ALIGN_BEGIN static uint8_t USBD_AUDIO_CfgDesc[USB_AUDIO_CONFIG_DESC_SIZ] __ALI
   0x02,                                 /* bSubFrameSize :  2 Bytes per frame (16bits) */
   16,                                   /* bBitResolution (16-bits per sample) */
   0x01,                                 /* bSamFreqType only one frequency supported */
-  AUDIO_SAMPLE_FREQ(USBD_AUDIO_FREQ),         /* Audio sampling frequency coded on 3 bytes */
+  AUDIO_SAMPLE_FREQ(SAMPLE_RATE),         /* Audio sampling frequency coded on 3 bytes */
   /* 11 byte*/
 
   /* B-11: USB Microphone Standard Endpoint Descriptor */
@@ -310,7 +297,7 @@ __ALIGN_BEGIN static uint8_t USBD_AUDIO_CfgDesc[USB_AUDIO_CONFIG_DESC_SIZ] __ALI
   USB_DESC_TYPE_ENDPOINT,               /* bDescriptorType */
   AUDIO_IN_EP,                          /* bEndpointAddress 1 out endpoint*/
   USBD_EP_TYPE_ISOC,                    /* bmAttributes */
-  AUDIO_PACKET_SZE(USBD_AUDIO_FREQ),    /* wMaxPacketSize in Bytes (Freq(Samples)*2(Stereo)*2(HalfWord)) */
+  AUDIO_PACKET_SZE(SAMPLE_RATE),    /* wMaxPacketSize in Bytes (Freq(Samples)*2(Stereo)*2(HalfWord)) */
   0x01,                                 /* bInterval */
   0x00,                                 /* bRefresh */
   0x00,                                 /* bSynchAddress */
@@ -360,17 +347,13 @@ __ALIGN_BEGIN static uint8_t USBD_AUDIO_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIE
 
 static uint8_t  USBD_AUDIO_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
-  memset((uint8_t*)micBuf, 0x00, NUM_MICBUFS * MICBUF_SIZE_BYTES);
-  for (int i=MICBUF_EXTRA; i<MICBUF_SIZE; i++) {
-    micBuf[i] = (i<MICBUF_SIZE/2) ? 0x1000 : 0xf000;
-  }
   USBD_AUDIO_HandleTypeDef   *haudio;
 
   /* Open EP OUT */
   // USBD_LL_OpenEP(pdev, AUDIO_OUT_EP, USBD_EP_TYPE_ISOC, AUDIO_OUT_PACKET);
   // pdev->ep_out[AUDIO_OUT_EP & 0xFU].is_used = 1U;
 
-  USBD_LL_OpenEP(pdev, AUDIO_IN_EP, USBD_EP_TYPE_ISOC, MICBUF_SIZE_BYTES);
+  USBD_LL_OpenEP(pdev, AUDIO_IN_EP, USBD_EP_TYPE_ISOC, MICBUF_SIZE*2);
   pdev->ep_in[AUDIO_IN_EP & 0xFU].is_used = 1U;
 
   /* Allocate Audio structure */
@@ -389,7 +372,7 @@ static uint8_t  USBD_AUDIO_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
   haudio->rd_enable = 0U;
 
   /* Initialize the Audio output Hardware layer */
-  if (((USBD_AUDIO_ItfTypeDef *)pdev->pUserData)->Init(USBD_AUDIO_FREQ,
+  if (((USBD_AUDIO_ItfTypeDef *)pdev->pUserData)->Init(SAMPLE_RATE,
                                                          AUDIO_DEFAULT_VOLUME,
                                                          0U) != 0) {
     return USBD_FAIL;

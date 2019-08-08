@@ -35,8 +35,10 @@ BUILD_DIR = build
 # source
 ######################################
 # C sources
+# MK: Added noisemeter.c
 C_SOURCES =  \
 Src/main.c \
+Src/noisemeter.c \
 Src/usb_device.c \
 Src/usbd_conf.c \
 Src/usbd_desc.c \
@@ -133,6 +135,7 @@ C_DEFS =  \
 AS_INCLUDES = 
 
 # C includes
+# MK: Added -IDrivers/CMSIS/DSP/Include for CMSIS-DSP
 C_INCLUDES =  \
 -IInc \
 -IDrivers/STM32L4xx_HAL_Driver/Inc \
@@ -141,7 +144,8 @@ C_INCLUDES =  \
 -IDrivers/CMSIS/Device/ST/STM32L4xx/Include \
 -IDrivers/CMSIS/Include \
 -IDrivers/CMSIS/Include \
--IMiddlewares/ST/STM32_USB_Device_Library/Class/AUDIO/Inc
+-IMiddlewares/ST/STM32_USB_Device_Library/Class/AUDIO/Inc \
+-IDrivers/CMSIS/DSP/Include
 
 
 # compile gcc flags
@@ -165,7 +169,8 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 LDSCRIPT = STM32L433CBUx_FLASH.ld
 
 # libraries
-LIBS = -lc -lm -lnosys 
+# MK: Added -LDrivers/CMSIS/Lib/GCC -l:libarm_cortexM4lf_math.a for CMSIS-DSP
+LIBS = -lc -lm -lnosys -LDrivers/CMSIS/Lib/GCC -l:libarm_cortexM4lf_math.a
 LIBDIR = 
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
@@ -202,6 +207,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@		
 
+# MK: Added flash target
 flash: build/$(TARGET).bin
 	dfu-util -d 0x0483:0xdf11 -a 0 -s 0x8000000 -D build/$(TARGET).bin
 

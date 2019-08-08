@@ -765,7 +765,7 @@ void *USBD_static_malloc(uint32_t size)
   /* USER CODE BEGIN 4 */
   /**
   * To compute the request size you must use the formula:
-    AUDIO_OUT_PACKET = (USBD_AUDIO_FREQ * 2 * numChannels) /1000)
+    AUDIO_OUT_PACKET = (SAMPLE_RATE * 2 * numChannels) /1000)
     AUDIO_TOTAL_BUF_SIZE = AUDIO_OUT_PACKET * AUDIO_OUT_PACKET_NUM with 
 	Number of sub-packets in the audio transfer buffer. You can modify this value but always make sure
     that it is an even number and higher than 3 

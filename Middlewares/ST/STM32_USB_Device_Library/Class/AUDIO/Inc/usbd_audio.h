@@ -37,18 +37,15 @@
   * @{
   */
 
+#include "noisemeter.h"
 
 /** @defgroup USBD_AUDIO_Exported_Defines
   * @{
   */
-#ifndef USBD_AUDIO_FREQ
-/* AUDIO Class Config */
-#define USBD_AUDIO_FREQ                               48000U
-#endif /* USBD_AUDIO_FREQ */
 
 #ifndef USBD_MAX_NUM_INTERFACES
 #define USBD_MAX_NUM_INTERFACES                       1U
-#endif /* USBD_AUDIO_FREQ */
+#endif /* USBD_MAX_NUM_INTERFACES */
 
 #define AUDIO_OUT_EP                                  0x01U
 #define AUDIO_IN_EP                                   0x82U
@@ -94,8 +91,8 @@
 #define AUDIO_IN_STREAMING_CTRL                      0x02U
 
 
-#define AUDIO_OUT_PACKET                              (uint16_t)(((USBD_AUDIO_FREQ * 2U) / 1000U))
-#define AUDIO_IN_PACKET                              (uint16_t)(((USBD_AUDIO_FREQ * 2U) / 1000U))
+#define AUDIO_OUT_PACKET                              (uint16_t)(((SAMPLE_RATE * 2U) / 1000U))
+#define AUDIO_IN_PACKET                              (uint16_t)(((SAMPLE_RATE * 2U) / 1000U))
 #define AUDIO_DEFAULT_VOLUME                          80U
 
 /* Number of sub-packets in the audio transfer buffer. You can modify this value but always make sure

@@ -25,7 +25,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-extern void Forward_Samples(uint16_t* samples, uint16_t num_samples, uint8_t bufIdx);
+#include "stm32l4xx_hal_adc.h"
+#include "noisemeter.h"
 
 /* USER CODE END Includes */
 
@@ -79,50 +80,6 @@ static void MX_TIM15_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void LED_Set(uint8_t on) {
-    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, on);
-}
-
-void LED_Toggle(void) {
-    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, !HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin));
-}
-
-void LED_Toggle_Modulo(void) {
-  static uint32_t counter = 0;
-  counter++;
-  if (counter >= 500) {
-    LED_Toggle();
-    counter = 0;
-  }
-}
-
-#define HALF_NUM_SAMPLES 48
-#define NUM_SAMPLES (2*HALF_NUM_SAMPLES)
-
-uint16_t dmaBuf[NUM_SAMPLES];
-
-void Handle_Samples(uint16_t* base, uint16_t numSamples, uint8_t bufIdx) {
-  uint16_t min = 0x8000;
-  uint16_t max = 0x8000;
-  for(int i=0;i<numSamples;i++) {
-    uint16_t val = base[i];
-    if (val < min) min = val;
-    if (val > max) max = val;
-//    base[i] = val & 0xf000;
-  }
-  LED_Set(max-min > 0x1000);
-  Forward_Samples(base, numSamples, bufIdx);
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-  Handle_Samples(&(dmaBuf[HALF_NUM_SAMPLES]), HALF_NUM_SAMPLES, 1);
-}
-
-void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
-  Handle_Samples(dmaBuf, HALF_NUM_SAMPLES, 0);
-}
-
-
 
 // void DMAComplete( DMA_HandleTypeDef *hdma) {
 // //  LED_Toggle_Modulo();
@@ -163,20 +120,15 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_SAI1_Init();
+#ifdef USE_USB_AUDIO
   MX_USB_DEVICE_Init();
+#endif
   MX_DAC1_Init();
   MX_OPAMP1_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_OPAMP_Start(&hopamp1);
-  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
-  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
-  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
-  HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
-
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dmaBuf, NUM_SAMPLES);
-  HAL_TIM_Base_Start_IT(&htim15);
+  Noisemeter_Init();
 
   /* USER CODE END 2 */
 
@@ -404,10 +356,14 @@ static void MX_I2C1_Init(void)
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
   hi2c1.Init.Timing = 0x00702991;
+#ifdef USE_I2C_SLAVE  
+  hi2c1.Init.OwnAddress1 = I2C_SLAVE_ADDRESS;
+#else
   hi2c1.Init.OwnAddress1 = 4;
+#endif  
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2 = I2C_SLAVE_ADDRESS;
   hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
@@ -534,7 +490,7 @@ static void MX_TIM15_Init(void)
   htim15.Instance = TIM15;
   htim15.Init.Prescaler = 0;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim15.Init.Period = 1667;
+  htim15.Init.Period = SAMPLE_RELOAD;
   htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim15.Init.RepetitionCounter = 0;
   htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
