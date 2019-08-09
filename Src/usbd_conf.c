@@ -24,7 +24,7 @@
 #include "stm32l4xx_hal.h"
 #include "usbd_def.h"
 #include "usbd_core.h"
-#include "usbd_audio.h"
+#include "usbd_cdc.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -344,6 +344,11 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x80 , PCD_SNG_BUF, 0x58);
   HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x82 , PCD_DBL_BUF, 0x01000140);
   /* USER CODE END EndPoint_Configuration */
+  /* USER CODE BEGIN EndPoint_Configuration_CDC */
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x81 , PCD_SNG_BUF, 0xC0);
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x01 , PCD_SNG_BUF, 0x110);
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x82 , PCD_SNG_BUF, 0x100);
+  /* USER CODE END EndPoint_Configuration_CDC */
   return USBD_OK;
 }
 
@@ -761,17 +766,7 @@ void USBD_LL_Delay(uint32_t Delay)
   */
 void *USBD_static_malloc(uint32_t size)
 {
-  static uint8_t mem[sizeof(USBD_AUDIO_HandleTypeDef)];
-  /* USER CODE BEGIN 4 */
-  /**
-  * To compute the request size you must use the formula:
-    AUDIO_OUT_PACKET = (SAMPLE_RATE * 2 * numChannels) /1000)
-    AUDIO_TOTAL_BUF_SIZE = AUDIO_OUT_PACKET * AUDIO_OUT_PACKET_NUM with 
-	Number of sub-packets in the audio transfer buffer. You can modify this value but always make sure
-    that it is an even number and higher than 3 
-	AUDIO_OUT_PACKET_NUM = 80
-  */
-  /* USER CODE END 4 */
+  static uint32_t mem[(sizeof(USBD_CDC_HandleTypeDef)/4)+1];/* On 32-bit boundary */
   return mem;
 }
 
