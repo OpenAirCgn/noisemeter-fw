@@ -8,7 +8,7 @@ The software framework was generated with ST CubeMX, but it does not need to be 
 
 ## Running
 
-The results can be read using I2C (the device implements a I2C slave under address 0x10/0x20). It allows 8 byte reads, giving the most recent dbA and dbC measurements as a float array. In parallel, the device acts as a serial interface through USB, logging a text representation (under Mac/Linux, use "cat /dev/<YOUR DEVICE NAME>").
+The results can be read using I2C (the device implements a I2C slave under address 0x10/0x20). It allows 8 byte reads, giving the most recent dbA and dbC measurements as a float array. In parallel, the device acts as a serial interface through USB, logging a text representation (under Mac/Linux, use "cat /dev/(YOUR DEVICE NAME)").
   
 ## A- and C-weighting
 
