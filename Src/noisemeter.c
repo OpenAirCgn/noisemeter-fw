@@ -29,7 +29,24 @@ uint16_t dmaBuf[2*BUFFER_SAMPLES];
 arm_biquad_casd_df1_inst_f32 dba_filter;
 float dba_coeffs[5*DBA_CASCADE_SIZE] = DBA_CASCADE_COEFFS;
 float dba_state[4*DBA_CASCADE_SIZE];
+float dba_average_ringbuffer[DBA_AVERAGE_BUFSIZE];
 float dba_val = 0.0f;
+
+float dba_meansquare_1s = 0.0f;
+float dba_meansquare_5s = 0.0f;
+float dba_meansquare_10s = 0.0f;
+float dba_meansquare_30s = 0.0f;
+float dba_meansquare_1m = 0.0f;
+float dba_meansquare_3m = 0.0f;
+float dba_meansquare_5m = 0.0f;
+
+float dba_val_1s = 0.0f;
+float dba_val_5s = 0.0f;
+float dba_val_10s = 0.0f;
+float dba_val_30s = 0.0f;
+float dba_val_1m = 0.0f;
+float dba_val_3m = 0.0f;
+float dba_val_5m = 0.0f;
 
 // dBC weighting biquad filter
 arm_biquad_casd_df1_inst_f32 dbc_filter;
@@ -40,7 +57,7 @@ float dbc_val = 0.0f;
 float gain_db = 0.0f;
 
 // I2C output buffer
-static float i2cData[2] = { 0,0 };
+static float i2cData[9] = { 0,0,0,0,0,0,0,0,0 };
 
 // forward function for USB audio (tweaked middleware)
 
@@ -68,6 +85,11 @@ void LED_Toggle_Modulo(void) {
 }
 
 void Noisemeter_Init(void) {
+  for (int i=0; i<DBA_AVERAGE_BUFSIZE; i++) {
+    dba_average_ringbuffer[i] = 0.0;
+  }
+  bzero(dmaBuf, 2*BUFFER_SAMPLES*sizeof(uint16_t));
+
   arm_biquad_cascade_df1_init_f32(&dba_filter, DBA_CASCADE_SIZE, dba_coeffs, dba_state);
   arm_biquad_cascade_df1_init_f32(&dbc_filter, DBC_CASCADE_SIZE, dbc_coeffs, dbc_state);
   HAL_OPAMP_Start(&hopamp1);
@@ -98,8 +120,15 @@ void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t transferDirection, ui
     //read data: pull to buffer
     i2cData[0] = dba_val;
     i2cData[1] = dbc_val;
+    i2cData[2] = dba_val_1s;
+    i2cData[3] = dba_val_5s;
+    i2cData[4] = dba_val_10s;
+    i2cData[5] = dba_val_30s;
+    i2cData[6] = dba_val_1m;
+    i2cData[7] = dba_val_3m;
+    i2cData[8] = dba_val_5m;
 
-    HAL_I2C_Slave_Seq_Transmit_IT(hi2c, (uint8_t*)i2cData, 8, I2C_LAST_FRAME);
+    HAL_I2C_Slave_Seq_Transmit_IT(hi2c, (uint8_t*)i2cData, 9*sizeof(float), I2C_LAST_FRAME);
   } else {
     __HAL_I2C_GENERATE_NACK(hi2c);  //TODO: read config
   }
@@ -122,6 +151,23 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
 
 #endif
 
+float AverageFloats(float* base, uint16_t fromIdx, uint16_t toIdx, uint16_t size) {
+  float sum = 0;
+  if (toIdx > fromIdx) {
+    for (int i=fromIdx+1; i<=toIdx; i++) {
+      sum += base[i];
+    }
+    return sum / (toIdx-fromIdx);
+  } else {
+    for (int i=fromIdx+1; i<size; i++) {
+      sum += base[i];
+    }
+    for (int i=0; i<=toIdx; i++) {
+      sum += base[i];
+    }
+    return sum / (size+toIdx-fromIdx);
+  }
+}
 
 void Handle_Samples(uint16_t* base, uint16_t numSamples) {
   // convert to float, offset to zero
@@ -134,6 +180,46 @@ void Handle_Samples(uint16_t* base, uint16_t numSamples) {
   float dba_rms;
   arm_rms_f32( src, numSamples, &dba_rms);
   dba_val = 20 * log10(dba_rms) + DBA_VAL_OFFSET - gain_db;
+
+  //dba averaging
+  static uint16_t dba_average_idx;
+  dba_average_idx = (dba_average_idx + 1) % DBA_AVERAGE_BUFSIZE;
+  // dba_meansquare_1s  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_1S_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_1S_BUFFERS;
+  // dba_meansquare_5s  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_5S_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_5S_BUFFERS;
+  // dba_meansquare_10s -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_10S_BUFFERS) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_10S_BUFFERS;
+  // dba_meansquare_30s -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_30S_BUFFERS) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_30S_BUFFERS;
+  // dba_meansquare_1m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_1M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_1M_BUFFERS;
+  // dba_meansquare_3m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_3M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_3M_BUFFERS;
+  // dba_meansquare_5m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_5M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_5M_BUFFERS;  
+  dba_average_ringbuffer[dba_average_idx] = dba_rms * dba_rms;
+  // // dba_meansquare_1s  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_1S_BUFFERS;
+  // // dba_meansquare_5s  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_5S_BUFFERS;
+  // // dba_meansquare_10s += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_10S_BUFFERS;
+  // // dba_meansquare_30s += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_30S_BUFFERS;
+  // // dba_meansquare_1m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_1M_BUFFERS;
+  // // dba_meansquare_3m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_3M_BUFFERS;
+  // // dba_meansquare_5m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_5M_BUFFERS;  
+  // dba_val_1s = 20 * log10(sqrtf(dba_meansquare_1s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_5s = 20 * log10(sqrtf(dba_meansquare_5s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_10s = 20 * log10(sqrtf(dba_meansquare_10s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_30s = 20 * log10(sqrtf(dba_meansquare_30s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_1m = 20 * log10(sqrtf(dba_meansquare_1m)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_3m = 20 * log10(sqrtf(dba_meansquare_3m)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_5m = 20 * log10(sqrtf(dba_meansquare_5m)) + DBA_VAL_OFFSET - gain_db;
+
+  dba_val_1s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_1S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_5s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_5S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_10s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_10S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_30s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_30S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_1m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_1M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_3m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_3M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  dba_val_5m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_5M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_5s = 20 * log10(sqrtf(dba_meansquare_5s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_10s = 20 * log10(sqrtf(dba_meansquare_10s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_30s = 20 * log10(sqrtf(dba_meansquare_30s)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_1m = 20 * log10(sqrtf(dba_meansquare_1m)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_3m = 20 * log10(sqrtf(dba_meansquare_3m)) + DBA_VAL_OFFSET - gain_db;
+  // dba_val_5m = 20 * log10(sqrtf(dba_meansquare_5m)) + DBA_VAL_OFFSET - gain_db;
 
   // convert input data to float again, offset to zero
   // double work, save memory - we might reduce block size and avoid this if processing gets tight
