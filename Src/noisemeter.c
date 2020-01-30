@@ -184,28 +184,7 @@ void Handle_Samples(uint16_t* base, uint16_t numSamples) {
   //dba averaging
   static uint16_t dba_average_idx;
   dba_average_idx = (dba_average_idx + 1) % DBA_AVERAGE_BUFSIZE;
-  // dba_meansquare_1s  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_1S_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_1S_BUFFERS;
-  // dba_meansquare_5s  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_5S_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_5S_BUFFERS;
-  // dba_meansquare_10s -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_10S_BUFFERS) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_10S_BUFFERS;
-  // dba_meansquare_30s -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_30S_BUFFERS) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_30S_BUFFERS;
-  // dba_meansquare_1m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_1M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_1M_BUFFERS;
-  // dba_meansquare_3m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_3M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_3M_BUFFERS;
-  // dba_meansquare_5m  -= dba_average_ringbuffer[((dba_average_idx + DBA_AVERAGE_BUFSIZE - DBA_AVERAGE_5M_BUFFERS ) % DBA_AVERAGE_BUFSIZE)] / DBA_AVERAGE_5M_BUFFERS;  
   dba_average_ringbuffer[dba_average_idx] = dba_rms * dba_rms;
-  // // dba_meansquare_1s  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_1S_BUFFERS;
-  // // dba_meansquare_5s  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_5S_BUFFERS;
-  // // dba_meansquare_10s += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_10S_BUFFERS;
-  // // dba_meansquare_30s += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_30S_BUFFERS;
-  // // dba_meansquare_1m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_1M_BUFFERS;
-  // // dba_meansquare_3m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_3M_BUFFERS;
-  // // dba_meansquare_5m  += dba_average_ringbuffer[dba_average_idx] / DBA_AVERAGE_5M_BUFFERS;  
-  // dba_val_1s = 20 * log10(sqrtf(dba_meansquare_1s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_5s = 20 * log10(sqrtf(dba_meansquare_5s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_10s = 20 * log10(sqrtf(dba_meansquare_10s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_30s = 20 * log10(sqrtf(dba_meansquare_30s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_1m = 20 * log10(sqrtf(dba_meansquare_1m)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_3m = 20 * log10(sqrtf(dba_meansquare_3m)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_5m = 20 * log10(sqrtf(dba_meansquare_5m)) + DBA_VAL_OFFSET - gain_db;
 
   dba_val_1s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_1S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
   dba_val_5s = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_5S_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
@@ -214,12 +193,6 @@ void Handle_Samples(uint16_t* base, uint16_t numSamples) {
   dba_val_1m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_1M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
   dba_val_3m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_3M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
   dba_val_5m = 20 * log10(sqrtf(AverageFloats(dba_average_ringbuffer, (dba_average_idx+DBA_AVERAGE_BUFSIZE-DBA_AVERAGE_5M_BUFFERS)%DBA_AVERAGE_BUFSIZE, dba_average_idx, DBA_AVERAGE_BUFSIZE))) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_5s = 20 * log10(sqrtf(dba_meansquare_5s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_10s = 20 * log10(sqrtf(dba_meansquare_10s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_30s = 20 * log10(sqrtf(dba_meansquare_30s)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_1m = 20 * log10(sqrtf(dba_meansquare_1m)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_3m = 20 * log10(sqrtf(dba_meansquare_3m)) + DBA_VAL_OFFSET - gain_db;
-  // dba_val_5m = 20 * log10(sqrtf(dba_meansquare_5m)) + DBA_VAL_OFFSET - gain_db;
 
   // convert input data to float again, offset to zero
   // double work, save memory - we might reduce block size and avoid this if processing gets tight
